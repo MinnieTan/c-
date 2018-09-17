@@ -1,0 +1,514 @@
+#Decoder.h
+
+#ifndef DECODER_H
+#define DECODER_H
+#include <string>
+using namespace std;
+#include <iostream>
+#include <fstream>
+#include "MinHeap.h"
+#include "HuffTree.h"
+class Decoder {
+        private:
+                unsigned frequency_table[256];
+                // You need to add more class memeber and methods
+                unsigned int uniqC;
+                ifstream encodedFile;
+                HuffTree * ht;
+                MinHeap * mh;
+                int totalC;
+        public:
+                //huff_file_path is the input (encoded) file that we 
+                //want to decode
+                Decoder(string huff_file_path);
+                //Fills up the frequency_table array where frequency_table[i] 
+                //will contain the frequency of char with ASCII code i                  
+                //This method will read the header of the encoded file to 
+                //extract the chars and their frequency
+                void buildFrequencyTableFromFile();
+                //Creates a min-heap and builds the Huffman tree
+                void decode();
+                //Writes the uncompressed file and save it as file_path
+                void writeUncompressedFile(string file_path);
+                ~Decoder();
+};
+#endif
+
+
+#----------------------
+#Decoder.cpp
+
+
+#include <iostream>
+#include "Decoder.h"
+#include <string>
+using namespace std;
+#include <fstream>
+#include "MinHeap.h"
+#include "HuffTree.h"
+Decoder::Decoder(string huff_file_path){
+        this->uniqC = 0;
+        encodedFile.open(huff_file_path);
+        (this->ht) = new HuffTree();
+        (this->mh) = new MinHeap();
+}
+void Decoder::buildFrequencyTableFromFile(){
+        unsigned int uc;
+        encodedFile.read((char*)&uc, sizeof(uc));
+        this->uniqC = uc;
+        for(int i = 0; i < this->uniqC; i++){
+                unsigned char c;
+                encodedFile.read((char*)&c, sizeof(c));
+                unsigned f;
+                encodedFile.read((char*)&f, sizeof(f));
+                (this->frequency_table)[c] = f;
+        }
+}
+void Decoder::decode(){
+        for(int i = 0; i < 256; i++){
+                if(((this->frequency_table)[i])>0){
+                        char c = i;
+                        TreeNode * temp = new TreeNode(c, (this->frequency_table)[i]);
+                        (this->mh)->insert(temp);
+                }
+        }
+        (this->ht)->buildTree(this->mh);
+        this->totalC = ((this->ht)->getRoot())->getFrequency();
+}
+void Decoder::writeUncompressedFile(string file_path){
+        unsigned char temp = 0;
+        TreeNode * tempT = (this->ht)->getRoot();
+        for(int i = 0; i < (this->totalC); i++){
+                (this->encodedFile).read((char*)&temp, sizeof(temp));
+                for(int j = 7; j >=0; i--){
+                        unsigned int direction = temp >> (7-j);
+                        if(direction==1){
+                                tempT = tempT->left;
+                        }else{
+
+                        }
+                }
+        }
+}
+Decoder::~Decoder(){
+
+
+#-----------------------
+#Encoder.h
+
+#ifndef ENCODER_H
+#define ENCODER_H
+#include <string>
+using namespace std;
+#include "MinHeap.h"
+#include "TreeNode.h"
+#include "HuffTree.h"
+class Encoder {
+        private:
+                unsigned frequency_table[256];
+                string fileName;
+                unsigned int uc; //number of unique characters
+                HuffTree * ht;
+                // You need to add more class memeber and methods
+        public:
+                //test_file_path is the input (decoded) file
+                Encoder(string file_path);
+                //Fills up the frequency_table array where frequency_table[i] 
+                //will contain the frequency of char with ASCII code i          
+                void buildFrequencyTable();
+                //Builds the min head and run the encoding algorithm
+                void encode();
+                //Generates the encoded file and save it as output_file_path
+                void writeEncodedFile(string output_file_path);
+                ~Encoder();
+};
+#endif
+
+
+#-----------------------
+#Encoder.cpp
+
+#include <iostream>
+#include<bitset>
+#include "Encoder.h"
+#include <unistd.h>
+#include <fstream>
+using namespace std;
+#include "MinHeap.h"
+#include "TreeNode.h"
+#include "HuffTree.h"
+#include <vector>
+Encoder::Encoder(string file_path){
+        this->fileName = file_path;
+        this->uc = 0;
+        this->ht = new HuffTree();
+        for(int i = 0; i < 256; i++){
+                (this->frequency_table)[i] = 0;
+        }
+}
+void Encoder::buildFrequencyTable(){
+        ifstream myFile (this->fileName);
+        unsigned char a;
+        while(myFile.read((char*)&a, sizeof(a))){
+                (this->frequency_table)[a]++;
+        }
+        myFile.close();                                                          
+}
+void Encoder::encode(){
+        //minheap                                                               
+        MinHeap * mh = new MinHeap();
+        for(int i = 0; i < 256; i++){
+                if((this->frequency_table)[i]>0){
+                        (this->uc)++;
+                        TreeNode * n = new TreeNode(i, (this->frequency_table)[i]);
+                        mh->insert(n);
+                }
+        }
+        //huffTree                                                              
+        (this->ht)->buildTree(mh);
+        //code for each char                                                    
+        (this->ht)->generateCodes();
+}
+void Encoder::writeEncodedFile(string output_file_path){
+        ofstream f;
+        f.open(output_file_path);
+        //header                                                                
+        //uc
+        unsigned short uniqC = this->uc;
+        f.write((char*)&uniqC,2);
+        //frequency
+        for(int i = 0; i < 256; i++){
+                if(((this->frequency_table)[i])>0){
+                        f.write((char*)&i, sizeof(char));
+                        unsigned l;
+                        l = (unsigned )(this->frequency_table)[i];
+                        f.write((char*)&l, sizeof(int));
+                }
+        }
+        //body                                                                           
+        ifstream w (this->fileName);                                             
+        unsigned char x;
+        int count = 0;
+        char temp = 0;
+        while(w.read((char*)&x, sizeof(x))){
+                for(int a = 0; a < (this->ht)->codeTable[(int)x].length(); a++){
+                        char b = ht->codeTable[x][a];
+                        temp = temp << 1;
+                        temp = temp | (b - '0');
+                        count = (count+1)%8;
+                        if(count==0){
+                                f.write((char*)&temp, 1);                        
+                                temp = 0;
+                        }
+                }
+        }
+        while(count!=0){
+                temp = temp << 1;
+                count = (count+1)%8;
+                if (count == 0){
+                        f.write((char*)&temp, 1);
+                }
+        }
+        w.close();
+        f.close();
+}
+
+
+#--------------------
+#HuffTree.h
+
+#ifndef HUFFTREE_H
+#define HUFFTREE_H
+#include "MinHeap.h"
+#include "TreeNode.h"
+#include <string>
+#define MAXCODELENGTH 256
+#define BYTESIZE 8
+using namespace std;
+#include <vector>
+#include <string>
+class HuffTree {
+        private:
+                //Add class members and methods 
+                TreeNode * root;
+                MinHeap * m;
+        public:
+                string codeTable[256];
+                HuffTree(){
+                        this->root = NULL;
+                }
+                void traverse(TreeNode * r, char * c, int a){
+                        if(!r){
+                                return;
+                        }
+                        if(((r->getLeft())==NULL)||((r->getRight())==NULL)){
+                                c[a] = '\0';
+                                codeTable[(int)r->getVal()] = string(c);
+
+                                return;
+                        }
+                        c[a] = '1';
+                        traverse(r->getLeft(), c, a+1);
+                        c[a] = '0';
+                        traverse(r->getRight(), c, a+1);
+                }
+                void printTree(TreeNode *r){
+                        if(!r){
+                                return;
+                        }
+                        cout << r->getVal() << endl;
+                        printTree(r->getLeft());
+                        printTree(r->getRight());
+                }
+                //build a huffman  tree  give a minheap
+                void buildTree(MinHeap * mh){
+                        this->m = mh;
+                        while(((this->m)->getSize())>1){
+                                TreeNode *l = (this->m)->removeMin();
+                                TreeNode *r = (this->m)->removeMin();
+                                unsigned long fre = (l->getFrequency())+(r->getFrequency());
+                                char c = 0;
+                                TreeNode *p = new TreeNode(c, fre);
+                                p->join(l, r);
+                                (this->m)->insert(p);
+                        }
+                        this->root = ((this->m)->arr).at(0);
+                }
+                //generate codes by traversing the huffman tree
+                //and store them in an internal data structure (array of strings for example)
+                void generateCodes(){
+                        char c[17];
+                        traverse(this->root, c, 0);
+                }
+                //returns root of the tree
+                TreeNode * getRoot(){
+                        return this->root;
+                }
+                //returns huffman code from  the ascii code
+                string getCharCode(int c){
+                        return (this->codeTable)[c];
+                }
+                ~HuffTree(){
+                        delete this->root;
+                }
+};
+#endif
+
+
+#----------------------------------------------
+#main.cpp
+
+#include <iostream>
+#include <string>
+#include "MinHeap.h"
+#include "Encoder.h"
+#include "Decoder.h"
+using namespace std;
+void printHelp(){
+        cout << "Invalid arguments." << endl;
+        cout << "Type \"huffman [mode] [arguments]\" where mode and its arguments are one of the following:" << endl;
+        cout << "-e [src] [dest]: encode the source file and place the result into the specified destination" << endl;
+        cout << "-d [src] [dest]: decode the source file and place the result into the specified destination" << endl;
+        exit(1);
+}
+int main (int argc, char** argv){
+        if(argc<4){
+                printHelp();
+                return 0;
+        }
+        string input = argv[2];
+        string output = argv[3];
+        Encoder * e = new Encoder(input);
+        e->buildFrequencyTable();
+        e->encode();
+        e->writeEncodedFile(output);
+        return 0;
+}
+
+
+#---------------------
+#MinHeap.h
+
+#ifndef MINHEAP_H
+#define MINHEAP_H
+#include "TreeNode.h"
+using namespace std;
+#define iLeft(p) (2*p+1)
+#define iRight(p) (2*p+2)
+#define iParent(ch) ((ch-1)/2)
+#include <vector>
+class MinHeap {
+        private:
+                int n; //current number of elements
+        public:
+                vector<TreeNode *> arr;
+                MinHeap();
+                TreeNode * removeMin(); //returns root of heap
+                void insert(TreeNode * val); //adds element to heap
+                int getSize(); //returns size of heap
+                ~MinHeap();
+};
+#endif
+
+
+
+#---------------------
+#MinHeap.cpp
+
+#include <iostream>
+#include <climits>
+#include "MinHeap.h"
+#include "TreeNode.h"
+//implement the methods in MinHeap.h
+MinHeap::MinHeap(){
+        this->n = 0;
+}
+void MinHeap::insert(TreeNode * val){
+        //add val in the next available position in arr                         
+        (this->arr).push_back(val);
+        (this->n)++;
+        //swap a parent and child starting at inserted node up until we reach r\
+oot or not necessary                                                            
+        int child = this->n - 1;
+        int parent = iParent(child);
+        while(child>0){
+                TreeNode * c = arr.at(child);
+                TreeNode * p = arr.at(parent);
+                if((c->getFrequency())>=(p->getFrequency())){
+                        //no need to swap.                                      
+                        break;
+                }
+                //we need to swap the parent and the child                      
+                TreeNode * temp = arr.at(child);
+                arr.at(child) = arr.at(parent);
+                arr.at(parent) = temp;
+                child = parent;
+                parent = iParent(child);
+        }
+}
+int MinHeap::getSize(){
+        return this->n;
+}
+TreeNode * MinHeap::removeMin(){
+        //returns minimum key after removng key from heap                       
+        TreeNode * min;
+        if((this->n)==0){
+                min = NULL;
+        }else if((this->n)==1){
+                min = arr.at(0);
+                (this->arr).pop_back();
+                (this->n)--;
+        }else if((this->n)>1){
+                //get min key at index 0                                        
+                min = arr.at(0);
+                (this->n)--;
+                if(this->n==0){
+                        //heap is empty. No need to fix heap                            
+                        return min;                                              
+                }
+                //move last element in heap to the top                          
+                (this->arr).at(0) = (this->arr).at(this->n);
+                (this->arr).pop_back();
+                //fix heap                                                      
+                int parent = 0;
+                int left = iLeft(parent);
+                int right = iRight(parent);
+                while(left<this->n){
+                        //determine smallest child                              
+                        int minChild = left;
+                        TreeNode * l = arr.at(left);
+                        if(right<(this->n)){
+                                TreeNode * r = arr.at(right);
+                                if((r->getFrequency())<(l->getFrequency())){     
+                                        minChild = right;
+                                }
+                        }
+                        //check if we need to swap                              
+                        TreeNode * p = arr.at(parent);
+                        TreeNode * m = arr.at(minChild);
+                        if((p->getFrequency())<=(m->getFrequency())){
+                                //no need to swap                               
+                                break;
+                        }
+                        //we need to swap parent and minChild                   
+                        TreeNode * temp = arr.at(minChild);
+                        arr.at(minChild) = arr.at(parent);
+                        arr.at(parent) = temp;
+                        //continue                                              
+                        parent = minChild;
+                        left = iLeft(parent);
+                        right = iRight(parent);
+                }
+        }
+        return min;
+}
+MinHeap::~MinHeap(){
+        (this->arr).clear();
+}
+
+
+#-------------------------------
+#TreeNode.h
+
+#ifndef TREENODE_H
+#define TREENODE_H
+#include <string>
+using namespace std;
+class TreeNode {
+        private:
+                unsigned long frequency;
+                unsigned char val;
+        public:
+                TreeNode * left;
+                TreeNode * right;
+                //TreeNode();
+                TreeNode(unsigned char val, unsigned long frequency);
+                //returns true if this node is a leaf node, returns false otherwise
+                bool isLeafNode();
+                //puts left as the left child and right as the right child of this node
+                void join(TreeNode * left, TreeNode * right);
+                TreeNode * getLeft(); //returns the left child
+                TreeNode * getRight(); //returns the right child
+                unsigned long getFrequency(); //returns frequency member variable
+                unsigned char getVal(); //returns val member variable
+};
+#endif
+
+
+#-------------------------------
+#TreeNode.cpp
+
+#include <iostream>
+#include "TreeNode.h"
+#include <string>
+TreeNode::TreeNode(unsigned char a, unsigned long i){
+        this->val = a;
+        this->frequency = i;
+        this->left = NULL;
+        this->right = NULL;
+}
+unsigned long TreeNode::getFrequency() {
+        return this->frequency;
+}
+unsigned char TreeNode::getVal() {
+        return val;
+}
+bool TreeNode::isLeafNode(){
+        if(((this->left)==NULL)&&((this->right)==NULL)){
+                return true;
+        }else{
+                return false;
+        }
+}
+void TreeNode::join(TreeNode * l, TreeNode * r){
+        this->left = l;
+        this->right = r;
+}
+TreeNode * TreeNode::getLeft(){
+        return this->left;
+}
+TreeNode * TreeNode::getRight(){
+        return this->right;
+}
+
+
