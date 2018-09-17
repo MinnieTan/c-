@@ -1,0 +1,366 @@
+#Edge.h
+
+#ifndef EDGE_H
+#define EDGE_H
+#include <iostream>
+#include "Vertex.h"
+using namespace std;
+class Edge {
+        public:
+        int v1Index;
+        int v2Index;
+        double weight;
+        bool tree;
+        //constructor
+        Edge(double w = double()){
+                this->v1Index = -1;
+                this->v2Index = -1;
+                this->weight = w;
+                this->tree = false;
+        }
+        void setV1Index(int one){
+                this->v1Index = one;
+        }
+        void setV2Index(int two){
+                this->v2Index = two;
+        }
+        int getVertex1(){
+                return this->v1Index;
+        }
+        int getVertex2(){
+                return this->v2Index;
+        }
+};
+#endif
+
+
+#-----------------------------------------
+#graph.h
+
+#ifndef GRAPH_H
+#define GRAPH_H
+#include <string>
+#include <vector>
+#include <utility>
+#include <stdlib.h>
+#include "Edge.h"
+#include "Vertex.h"
+using namespace std;
+class Graph{
+        private:
+                int numCities;
+                int numRoutes;
+                vector<Vertex> cities;
+                vector<string> separationEdges;
+                vector<Edge> edges;
+                int currentDiscoveryTime;
+                int currentEdges;
+                int * prev;
+        public:
+                // Create the graph
+                Graph(int, int);
+                //part 1: Find the connected components and the bridges
+                void separationEdgesRecursive(int, bool*);
+                void addCity(Vertex);
+                vector<Vertex>& getCities()
+                int getNumCities();
+                vector<Edge>& getEdges();
+                void addRoute(int, int, Edge);
+                void dfs(bool*, int);
+                int getConnectedComponents();
+                int getSeparationEdges();
+                void analyseGraph();
+                // Part 2: Find a ticket using Dijkstra 
+                int getMin(double*,bool*);
+                void findCost(const string &source, const string &destination);  
+                // Part 3: Try to do a tour of all cities
+                // NOTE : If necessary, you can change the parameters to this function.
+                void getMST(int);
+                void eulerianTour(int);
+};
+#endif
+
+
+#-----------------------------------------
+#graph.cpp
+
+void Graph::getMST(int rootIndex){
+        bool visited[this->numCities];
+        double len[this->numCities]; //shortest edge length from last vertex array
+        for(int o = 0; o < (this->numCities); o++){
+                len[o] = INFI;
+                visited[o] = false;
+                (this->prev)[o] = -1;
+        }
+        len[rootIndex] = 0;
+        int size = this->numCities;
+        while(size>0){
+                int minEdgeIndex = getMin(len, visited);
+                visited[minEdgeIndex] = true;
+                size = size - 1;
+                Vertex current = (this->cities).at(minEdgeIndex);
+                for(int i = 0; i < ((current.neighbor).size()); i++){
+                        int anotherIndex = ((current.neighbor).at(i)).first;
+                        double val = ((current.neighbor).at(i)).second;
+                        if(visited[anotherIndex]==false){
+                                if(val<len[anotherIndex]){
+                                        len[anotherIndex] = val;
+                                        (this->prev)[anotherIndex] = minEdgeIndex;
+                                }
+                        }
+                }
+        }
+}
+void Graph::eulerianTour(int rootIndex){
+        cout << ((this->cities).at(rootIndex)).name << endl;
+        vector<int> children; 
+        for(int i = 0; i < (this->numCities); i++){
+                if(((this->prev)[i])==rootIndex){
+                        children.push_back(i);
+                }
+        } 
+        int s = children.size();
+        if(s==0){
+                return;
+        }else if(s>0){
+                for(int j = 0; j < (s-1); j++){
+                        for(int k = 0; k < (s-j-1); k++){ 
+                                int kIndex = children.at(k);
+                                int k1Index = children.at(k+1);
+                                string kStr = ((this->cities).at(kIndex)).name;
+                                string k1Str = ((this->cities).at(k1Index)).name;   
+                                int temp = 0;
+                                if((kStr.compare(k1Str))>0){
+                                        temp = kIndex;
+                                        children.erase(children.begin()+k);
+                                        children.insert(children.begin()+k+1, temp);
+                                }
+                        }
+                }
+                for(int l = 0; l < s; l++){
+                        int index = children.at(l);
+                        eulerianTour(index);
+                }
+        }
+}
+
+
+#-------------------------------------------------------
+#main.cpp
+
+#include "graph.h"
+#include <vector>
+#include <utility>
+#include <stdlib.h>
+#include "Edge.h"
+#include "Vertex.h"
+#include <stdio.h>
+using namespace std;
+ // Part 1 : Find the connected components and the bridge
+void part1(){
+        int vertices;
+        cin >> vertices;
+        int routes;
+        cin >> routes;
+        Graph * g = new Graph(vertices, routes);
+        string city1;
+        string city2;
+        double route;
+        int currentCities = 0;
+        while((cin >> city1)&&(cin >> city2)&&(cin >> route)){
+                //cin >> city2;
+                //cin >> route;
+                Edge * e = new Edge(route);
+                bool city1Found = false;
+                bool city2Found = false;
+                int index1 = -1;
+                int index2 = -1;
+                for(int i = 0; i < currentCities; i++){
+                        string temp = ((g->getCities()).at(i)).name;
+                        if((temp.compare(city1))==0){
+                                city1Found = true;
+                                index1 = i;
+                                e->setV1Index(i);
+                        }
+                        if((temp.compare(city2))==0){
+                                index2 = i;
+                                city2Found = true;
+                                e->setV2Index(i);
+                        }
+                        if((city1Found==true)&&(city2Found==true)){
+                                break;
+                        }
+                }
+                if(city1Found==false){
+                        Vertex * v1 = new Vertex(city1);
+                        g->addCity(*v1);
+                        index1 = currentCities;
+                        currentCities = currentCities + 1;
+                }
+                if(city2Found==false){
+                        Vertex * v2 = new Vertex(city2);
+                        g->addCity(*v2);
+                        index2 = currentCities;
+                        currentCities = currentCities + 1;
+                }
+                g->addRoute(index1, index2, *e);
+        }
+        g->analyseGraph();
+}
+ // Part 2 :  Find a ticket using Dijkstra      
+void part2(){
+        int vertices;
+        cin >> vertices;
+        int routes;
+        cin >> routes;
+        Graph * g = new Graph(vertices, routes);
+        int currentCities = 0;
+        for(int j = 0; j < routes; j++){
+                string source;
+                string destination;
+                double cost;
+                cin >> source;
+                cin >> destination;
+                cin >> cost;
+                bool sourceFound = false;
+                bool destinationFound = false;
+                int indexS = -1;
+                int indexD = -1;
+                for(int i = 0; i < currentCities; i++){
+                        string temp = ((g->getCities()).at(i)).name;
+                        if((temp.compare(source))==0){
+                                sourceFound = true;
+                                indexS = i;
+                        }
+                        if((temp.compare(destination))==0){
+                                indexD = i;
+                                destinationFound = true;
+                        }
+                        if((sourceFound==true)&&(destinationFound==true)){
+                                break;
+                        }
+                }
+                if(sourceFound==false){
+                        Vertex * v1 = new Vertex(source);
+                        g->addCity(*v1);
+                        indexS = currentCities;
+                        currentCities = currentCities + 1;
+                }
+                if(destinationFound==false){
+                        Vertex * v2 = new Vertex(destination);
+                        g->addCity(*v2);
+                        indexD = currentCities;
+                        currentCities = currentCities + 1;
+                }
+                ((g->getCities()).at(indexS)).addNeighbor(indexD, cost);
+                ((g->getCities()).at(indexD)).addNeighbor(indexS, cost);
+        }
+        string c;
+        string d;
+        while((cin>>c)&&(cin>>d)){
+                g->findCost(c, d);
+        }
+}
+ // Part 3 :Try to do a tour of all cities 
+void part3(){
+        int vertices;
+        cin >> vertices;
+        int routes;
+        cin >> routes;
+        Graph * g = new Graph(vertices, routes);
+        int currentCities = 0;
+        for(int i = 0; i < routes; i++){
+                string source;
+                string destination;
+                double cost;
+                cin >> source;
+                cin >> destination;
+                cin >> cost;
+                bool sourceFound = false;
+                bool destinationFound = false;
+                int indexS = -1;
+                int indexD = -1;
+               for(int i = 0; i < currentCities; i++){
+                        string temp = ((g->getCities()).at(i)).name;
+                        if((temp.compare(source))==0){
+                                sourceFound = true;
+                                indexS = i;
+                        }
+                        if((temp.compare(destination))==0){
+                                indexD = i;
+                                destinationFound = true;
+                        }
+                        if((sourceFound==true)&&(destinationFound==true)){
+                                break;
+                        }
+                }
+                if(sourceFound==false){
+                        Vertex * v1 = new Vertex(source);
+                        g->addCity(*v1);
+                        indexS = currentCities;
+                        currentCities = currentCities + 1;
+                }
+                if(destinationFound==false){
+                        Vertex * v2 = new Vertex(destination);
+                        g->addCity(*v2);
+                        indexD = currentCities;
+                        currentCities = currentCities + 1;
+                }
+                ((g->getCities()).at(indexS)).addNeighbor(indexD, cost);
+                ((g->getCities()).at(indexD)).addNeighbor(indexS, cost);
+
+        }
+        string root;
+        cin >> root;
+        int rootIndex = -1;
+        for(int k = 0; k < vertices; k++){
+                if((root.compare(((g->getCities()).at(k)).name))==0){
+                        rootIndex = k;
+                        break;
+                }
+        }
+        if(rootIndex>-1){
+                g->getMST(rootIndex);
+                g->eulerianTour(rootIndex);
+        }
+}
+ int main() {
+         double cmd;
+         cin >> cmd;
+
+         if(cmd == 1) part1();
+         else if(cmd == 2) part2();
+         else if(cmd == 3) part3();
+
+         return 0;
+ }
+ 
+ 
+ #--------------------------------------
+ #Vertex.h
+ 
+ #ifndef VERTEX_H
+#define VERTEX_H
+#include <iostream>
+#include <vector>
+#include <limits>
+#include <algorithm>
+using namespace std;
+class Vertex{
+        public:
+        string name;
+        int discoveryTime;
+        int eval;
+        vector<int> parent;
+        vector< pair<int, double> > neighbor;
+        //constructor
+        Vertex(string v = string()){
+                this->name = v;
+                this->discoveryTime = -1;
+                this->eval = -1;
+        }
+        void addNeighbor(int index, double weight){
+                (this->neighbor).push_back( make_pair(index, weight) );
+        }
+};
+#endif
