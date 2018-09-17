@@ -1,0 +1,44 @@
+#main.cpp
+
+/**
+ *  CS251 - Spring 2018: Project 1
+ */
+#include <iostream>
+#include <fstream>
+using namespace std;
+int main(int argc, char** argv) {
+        /* Use input/output using C++ like notation would use "cin" and "cout" to read/write to stdin/stdout */
+    /* ------------------------------- */
+    /* process inputs and write output */
+    /* ------------------------------- */
+        int c;  //number of columns
+        cin >> c;
+        for(int i =0; i < (6*c-3); i++){        //print the first dash line
+                cout << '-';
+        }
+        cout << "\r\n";
+        int count = 0;  //count how many numbers are there in total
+        int temp;       //store the int we read
+        while( cin >> temp){
+                count++;
+                if(temp<10){
+                        cout << "  " << temp;
+                }else if((temp>9)&&(temp<100)){
+                        cout << " " << temp;
+                }else if(temp>99){
+                        cout << temp;
+                }
+                if((count%c)!=0){
+                        cout << " | ";
+                }else if((count%c)==0){
+                        cout << "\r\n";
+                        for(int i =0; i < (6*c-3); i++){        //print the dash line between each line
+                                cout << '-';
+                        }
+                        if(!cin.eof()){
+                                cout << "\r\n";
+                        }
+                }
+        }
+    /* Exit the program */
+    return 0;
